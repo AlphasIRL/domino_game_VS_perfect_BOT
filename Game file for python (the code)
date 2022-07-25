@@ -1,0 +1,269 @@
+from random import choice
+from sys import exit
+
+
+def generate_set():
+    """Returns the whole set of domino pieces as a list"""
+    domino_set_list = []
+    for num in range(7):
+        for x in range(num + 1):
+            piece = [num, x]
+            domino_set_list.append(piece)
+    return domino_set_list
+
+
+def generate_piles(domino_set):
+    """Returns the three piles of dominos (stock, player_1 and player_2) randomly as lists"""
+    stk_pieces = []
+    plyer_pieces = []
+    cmp_pieces = []
+    for i in range(14):  # stock pile
+        rand_piece = choice(domino_set)
+        stk_pieces.append(rand_piece)
+        domino_set.remove(rand_piece)
+
+    for i in range(7):  # player pile
+        rand_piece = choice(domino_set)
+        plyer_pieces.append(rand_piece)
+        domino_set.remove(rand_piece)
+
+    for i in range(7):  # computer pile
+        rand_piece = choice(domino_set)
+        cmp_pieces.append(rand_piece)
+        domino_set.remove(rand_piece)
+
+    return stk_pieces, plyer_pieces, cmp_pieces
+
+
+def find_start_piece(player_pile, computer_pile):
+    """Returns the highest valued double domino from the player or computer pile"""
+    start_piece = []
+    for lst in player_pile:
+        if lst[0] == lst[1]:
+            if sum(lst) > sum(start_piece):
+                start_piece = lst
+    for lst in computer_pile:
+        if lst[0] == lst[1]:
+            if sum(lst) > sum(start_piece):
+                start_piece = lst
+    return start_piece
+
+
+def starting_player(player_pile, computer_pile):
+    """Returns the list of dominoes owned by the player that starts"""
+    if len(player_pile) > len(computer_pile):
+        return "player"
+    return "computer"
+
+
+def display_user_interface(stock_pile, player_pile, computer_pile, stat, snake):
+    """Prints the whole screen"""
+    stock_size = len(stock_pile)
+    computer_size = len(computer_pile)
+    counter = 1
+    header = "=" * 70
+    print(header)
+    print(f"Stock size: {stock_size}")
+    print(f"Computer pieces: {computer_size}")
+    print()
+    string = ""
+    string_counter = 0
+    for lst in snake:
+        string += str(lst)
+        string_counter += 1
+    if string_counter > 6:
+        string = string[: 6 * 3] + "..." + string[6 * string_counter - 6 * 3:]
+    print(string)
+    print()
+    print("Your pieces:")
+    for lst in player_pile:
+        print(f"{counter}:{lst}")
+        counter += 1
+    print()
+
+    if len(player_pile) == 0:
+        print("Status: The game is over. You won!")
+        exit()
+    if len(computer_pile) == 0:
+        print("Status: The game is over. The computer won!")
+        exit()
+    counter = 0
+    if snake[0][0] == snake[-1][1]:
+        for lst in snake:
+            counter += lst.count(snake[0][0])
+    if counter > 7:
+        print("Status: The game is over. It's a draw!")
+        exit()
+    if stat == "player":
+        print("Status: It's your turn to make a move. Enter your command.")
+    if stat == "computer":
+        print("Status: Computer is about to make a move. Press Enter to continue...")
+
+
+def get_player_input(stock_pile, player_pile, computer_pile, stat, snake):
+    if stat == "player":
+        stat = "computer"
+        while True:
+            player_choice = input()
+            if len(player_choice) == 0:
+                print("Invalid input. Please try again.")
+                continue
+            try:
+                if abs(int(player_choice)) > len(player_pile):
+                    print("Invalid input. Please try again.")
+                    continue
+            except ValueError:
+                print("Invalid input. Please try again.")
+                continue
+
+            if int(player_choice) >= 1:
+                piece = player_pile[int(player_choice) - 1]
+                if right_legal(snake, piece) == "not flip":
+                    snake.append(piece)
+                    player_pile.remove(piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                if right_legal(snake, piece) == "flip":
+                    r_piece = piece[::-1]
+                    snake.append(r_piece)
+                    player_pile.remove(piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                else:
+                    print("Illegal move. Please try again.")
+                    continue
+            if int(player_choice) == 0 and len(stock_pile) != 0:
+                rand_piece = choice(stock_pile)
+                player_pile.append(rand_piece)
+                stock_pile.remove(rand_piece)
+                return stock_pile, player_pile, computer_pile, stat, snake
+
+            if int(player_choice) == 0 and len(stock_pile) == 0:
+                return stock_pile, player_pile, computer_pile, stat, snake
+
+            if int(player_choice) < 0:
+                piece = player_pile[abs(int(player_choice)) - 1]
+                if left_legal(snake, piece) == "not flip":
+                    snake.insert(0, piece)
+                    player_pile.remove(piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                if left_legal(snake, piece) == "flip":
+                    r_piece = piece[::-1]
+                    snake.insert(0, r_piece)
+                    player_pile.remove(piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                else:
+                    print("Illegal move. Please try again.")
+                    continue
+    if stat == "computer":
+        input()
+        stat = "player"
+        new_computer_pile = computer_pile[:]
+        x = True
+        while True:
+            if x:
+                computer_choice = int(ai_count(snake, new_computer_pile)) + 1
+            else:
+                computer_choice = -(int(ai_count(snake, new_computer_pile)) + 1)
+            if computer_choice >= 1:
+                c_piece = new_computer_pile[int(computer_choice) - 1]
+                if right_legal(snake, c_piece) == "not flip":
+                    snake.append(c_piece)
+                    computer_pile.remove(c_piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                elif right_legal(snake, c_piece) == "flip":
+                    r_piece = c_piece[::-1]
+                    snake.append(r_piece)
+                    computer_pile.remove(c_piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                else:
+                    x = False
+                    continue
+            if computer_choice == 0 and len(stock_pile) != 0:
+                rand_piece = choice(stock_pile)
+                computer_pile.append(rand_piece)
+                stock_pile.remove(rand_piece)
+                return stock_pile, player_pile, computer_pile, stat, snake
+
+            if computer_choice == 0 and len(stock_pile) == 0:
+                return stock_pile, player_pile, computer_pile, stat, snake
+
+            if computer_choice < 0:
+                c_piece = new_computer_pile[abs(int(computer_choice)) - 1]
+                if left_legal(snake, c_piece) == "not flip":
+                    snake.insert(0, c_piece)
+                    computer_pile.remove(c_piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                if left_legal(snake, c_piece) == "flip":
+                    r_piece = c_piece[::-1]
+                    snake.insert(0, r_piece)
+                    computer_pile.remove(c_piece)
+                    return stock_pile, player_pile, computer_pile, stat, snake
+                else:
+                    x = True
+                    new_computer_pile.remove(c_piece)
+                    continue
+
+
+def ai_count(snake, computer):
+    scores = {}
+    for i in range(7):
+        snake_count = 0
+        computer_count = 0
+        for domino in snake:
+            snake_count += domino.count(i)
+        for lst in computer:
+            computer_count += lst.count(i)
+        scores[i] = snake_count + computer_count
+    domino_scores = {}
+    for i, lst in enumerate(computer):
+        play_score = 0
+        for num in lst:
+            play_score += scores[num]
+        domino_scores[i] = play_score
+    try:
+        max_value = max(domino_scores.values())
+        for key, value in domino_scores.items():
+            if max_value == value:
+                return key
+    except ValueError:
+        return -1
+
+
+def right_legal(snake, piece):
+    if snake[-1][1] == piece[0]:
+        return "not flip"
+    if snake[-1][1] == piece[1]:
+        return "flip"
+
+
+def left_legal(snake, piece):
+    if snake[0][0] == piece[1]:
+        return "not flip"
+    if snake[0][0] == piece[0]:
+        return "flip"
+
+
+def main():
+    stock_pieces, player_pieces, computer_pieces = generate_piles(generate_set())
+    domino_snake = find_start_piece(player_pieces, computer_pieces)
+
+    while True:
+        if domino_snake:
+            break
+        else:
+            stock_pieces, player_pieces, computer_pieces = generate_piles(generate_set())
+            domino_snake = find_start_piece(player_pieces, computer_pieces)
+
+    if domino_snake in player_pieces:
+        player_pieces.remove(domino_snake)
+    else:
+        computer_pieces.remove(domino_snake)
+
+    domino_snake_list = [domino_snake]
+    status = starting_player(player_pieces, computer_pieces)
+    while True:  # main game loop
+        display_user_interface(stock_pieces, player_pieces, computer_pieces, status, domino_snake_list)
+        stock_pieces, player_pieces, computer_pieces, status, domino_snake_list = \
+            get_player_input(stock_pieces, player_pieces, computer_pieces, status, domino_snake_list)
+
+
+main()
